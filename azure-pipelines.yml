@@ -1,19 +1,96 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+stages:
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+# ── CI ──────────────────────────────────────────────
+- stage: Build
+  jobs:
+  - job: BuildAndTest
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: npm install
+      displayName: 'Install Dependencies'
+
+    - script: npm test -- --coverage
+      displayName: 'Run Tests with Coverage'
+
+# ── SonarCloud ──────────────────────────────────────
+- stage: SonarCloud
+  jobs:
+  - job: StaticAnalysis
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Install Node.js'
+
+    - script: npm install
+      displayName: 'Install Dependencies'
+
+    - task: SonarCloudPrepare@3
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: 'eldinbautista7'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'eldinbautista7_todo-api-devops-project'
+        cliProjectName: 'todo-api-devops-project'
+        extraProperties: |
+          sonar.sources=src
+          sonar.tests=tests
+          sonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+    - task: SonarCloudAnalyze@3
+
+    - task: SonarCloudPublish@3
+      inputs:
+        pollingTimeoutSec: '300'
+
+# ── CD ──────────────────────────────────────────────
+- stage: Deliver
+  jobs:
+  - job: PackageArtifact
+    steps:
+    - script: npm pack
+      displayName: 'Package Artifact'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '.'
+        artifactName: 'drop'
+
+- stage: DeployDev
+  jobs:
+  - job: DeployDev
+    steps:
+    - script: echo "Deploying to Dev environment"
+      displayName: 'Deploy to Dev'
+
+- stage: DeployQAT
+  jobs:
+  - job: DeployQAT
+    steps:
+    - script: echo "Deploying to QAT environment"
+      displayName: 'Deploy to QAT'
+
+- stage: DeployStaging
+  jobs:
+  - job: DeployStaging
+    steps:
+    - script: echo "Deploying to Staging environment"
+      displayName: 'Deploy to Staging'
+
+- stage: DeployProduction
+  jobs:
+  - job: DeployProd
+    steps:
+    - script: echo "Deploying to Production environment"
+      displayName: 'Deploy to Production'
