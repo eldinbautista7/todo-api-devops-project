@@ -22,8 +22,10 @@ stages:
     - script: npm test -- --coverage
       displayName: 'Run Tests with Coverage'
 
+
 # ── SonarCloud ──────────────────────────────────────
 - stage: SonarCloud
+  dependsOn: Build
   jobs:
   - job: StaticAnalysis
     steps:
@@ -54,8 +56,10 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
+
 # ── CD ──────────────────────────────────────────────
 - stage: Deliver
+  dependsOn: SonarCloud
   jobs:
   - job: PackageArtifact
     steps:
@@ -67,28 +71,38 @@ stages:
         pathToPublish: '.'
         artifactName: 'drop'
 
+
+# ── Deployments ─────────────────────────────────────
+
 - stage: DeployDev
+  dependsOn: Deliver
   jobs:
   - job: DeployDev
     steps:
     - script: echo "Deploying to Dev environment"
       displayName: 'Deploy to Dev'
 
+
 - stage: DeployQAT
+  dependsOn: Deliver
   jobs:
   - job: DeployQAT
     steps:
     - script: echo "Deploying to QAT environment"
       displayName: 'Deploy to QAT'
 
+
 - stage: DeployStaging
+  dependsOn: Deliver
   jobs:
   - job: DeployStaging
     steps:
     - script: echo "Deploying to Staging environment"
       displayName: 'Deploy to Staging'
 
+
 - stage: DeployProduction
+  dependsOn: Deliver
   jobs:
   - job: DeployProd
     steps:
