@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  vmImage: 'MyLocalAgent'
+  name: MyLocalAgent
 
 stages:
 
