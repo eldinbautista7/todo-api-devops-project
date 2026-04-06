@@ -16,7 +16,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
   const task = addTask(title);
-  res.status(200).json(task);
+  res.status(201).json(task); //fixed the status code to 201 for created resource
 });
 
 module.exports = router;
