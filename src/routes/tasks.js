@@ -12,6 +12,9 @@ router.get('/', (req, res) => {
 // POST /tasks
 router.post('/', (req, res) => {
   const { title } = req.body;
+  if (!title || title.trim() === '') {
+    return res.status(400).json({ error: 'Title is required' });
+  }
   const task = addTask(title);
   res.status(200).json(task);
 });
