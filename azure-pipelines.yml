@@ -6,32 +6,37 @@ pool:
 
 stages:
 
-# ── CI ──────────────────────────────────────────────
+# ── CI: Build Stage ──────────────────────────────────────────────
 - stage: Build
   jobs:
   - job: BuildAndTest
     steps:
+    - checkout: self
+      fetchDepth: 1
+
     - task: NodeTool@0
       inputs:
         versionSpec: '18.x'
-      displayName: 'Install Node.js'
+      displayName: 'Use Node.js 18.x'
 
     - script: npm install
       displayName: 'Install Dependencies'
 
     - script: npm test -- --coverage
-      displayName: 'Run Tests with Coverage'
+      displayName: 'Run Unit Tests with Coverage'
 
-# ── SonarCloud ──────────────────────────────────────
+# ── SonarCloud Static Analysis ───────────────────────────────────
 - stage: SonarCloud
   dependsOn: Build
   jobs:
   - job: StaticAnalysis
     steps:
+    - checkout: self
+      fetchDepth: 1
+
     - task: NodeTool@0
       inputs:
         versionSpec: '18.x'
-      displayName: 'Install Node.js'
 
     - script: npm install
       displayName: 'Install Dependencies'
@@ -50,26 +55,26 @@ stages:
           sonar.javascript.lcov.reportPaths=coverage/lcov.info
 
     - task: SonarCloudAnalyze@3
+      # Publish task removed to avoid 403 Quality Gate error on free plan
 
-    - task: SonarCloudPublish@3
-      inputs:
-        pollingTimeoutSec: '300'
-
-# ── CD ──────────────────────────────────────────────
+# ── CD: Deliver Stage ────────────────────────────────────────────
 - stage: Deliver
   dependsOn: SonarCloud
   jobs:
   - job: PackageArtifact
     steps:
+    - checkout: self
+      fetchDepth: 1
+
     - script: npm pack
-      displayName: 'Package Artifact'
+      displayName: 'Package Artifact (npm pack)'
 
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '.'
         artifactName: 'drop'
 
-# ── Deployments (sequential on single agent) ────────
+# ── Deployments (Sequential - Important for single agent) ────────
 - stage: DeployDev
   dependsOn: Deliver
   jobs:
@@ -77,7 +82,7 @@ stages:
     steps:
     - checkout: none
     - script: echo "Deploying to Dev environment"
-      displayName: 'Deploy to Dev'
+      displayName: 'Deploy to Dev (Mock)'
 
 - stage: DeployQAT
   dependsOn: DeployDev
@@ -86,7 +91,7 @@ stages:
     steps:
     - checkout: none
     - script: echo "Deploying to QAT environment"
-      displayName: 'Deploy to QAT'
+      displayName: 'Deploy to QAT (Mock)'
 
 - stage: DeployStaging
   dependsOn: DeployQAT
@@ -95,7 +100,7 @@ stages:
     steps:
     - checkout: none
     - script: echo "Deploying to Staging environment"
-      displayName: 'Deploy to Staging'
+      displayName: 'Deploy to Staging (Mock)'
 
 - stage: DeployProduction
   dependsOn: DeployStaging
@@ -104,4 +109,4 @@ stages:
     steps:
     - checkout: none
     - script: echo "Deploying to Production environment"
-      displayName: 'Deploy to Production'
+      displayName: 'Deploy to Production (Mock)'
