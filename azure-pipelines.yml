@@ -1,0 +1,112 @@
+trigger:
+- main
+
+pool:
+  name: Default
+
+stages:
+
+# ── CI: Build Stage ──────────────────────────────────────────────
+- stage: Build
+  jobs:
+  - job: BuildAndTest
+    steps:
+    - checkout: self
+      fetchDepth: 1
+
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Use Node.js 18.x'
+
+    - script: npm install
+      displayName: 'Install Dependencies'
+
+    - script: npm test -- --coverage
+      displayName: 'Run Unit Tests with Coverage'
+
+# ── SonarCloud Static Analysis ───────────────────────────────────
+- stage: SonarCloud
+  dependsOn: Build
+  jobs:
+  - job: StaticAnalysis
+    steps:
+    - checkout: self
+      fetchDepth: 1
+
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+
+    - script: npm install
+      displayName: 'Install Dependencies'
+
+    - task: SonarCloudPrepare@3
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: 'eldinbautista7'
+        scannerMode: 'CLI'
+        configMode: 'manual'
+        cliProjectKey: 'eldinbautista7_todo-api-devops-project'
+        cliProjectName: 'todo-api-devops-project'
+        extraProperties: |
+          sonar.sources=src
+          sonar.tests=tests
+          sonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+    - task: SonarCloudAnalyze@3
+      # Publish task removed to avoid 403 Quality Gate error on free plan
+
+# ── CD: Deliver Stage ────────────────────────────────────────────
+- stage: Deliver
+  dependsOn: SonarCloud
+  jobs:
+  - job: PackageArtifact
+    steps:
+    - checkout: self
+      fetchDepth: 1
+
+    - script: npm pack
+      displayName: 'Package Artifact (npm pack)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '.'
+        artifactName: 'drop'
+
+# ── Deployments (Sequential - Important for single agent) ────────
+- stage: DeployDev
+  dependsOn: Deliver
+  jobs:
+  - job: DeployDev
+    steps:
+    - checkout: none
+    - script: echo "Deploying to Dev environment"
+      displayName: 'Deploy to Dev (Mock)'
+
+- stage: DeployQAT
+  dependsOn: DeployDev
+  jobs:
+  - job: DeployQAT
+    steps:
+    - checkout: none
+    - script: echo "Deploying to QAT environment"
+      displayName: 'Deploy to QAT (Mock)'
+
+- stage: DeployStaging
+  dependsOn: DeployQAT
+  jobs:
+  - job: DeployStaging
+    steps:
+    - checkout: none
+    - script: echo "Deploying to Staging environment"
+      displayName: 'Deploy to Staging (Mock)'
+
+- stage: DeployProduction
+  dependsOn: DeployStaging
+  jobs:
+  - job: DeployProd
+    steps:
+    - checkout: none
+    - script: echo "Deploying to Production environment"
+      displayName: 'Deploy to Production (Mock)'
